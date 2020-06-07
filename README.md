@@ -6,6 +6,6 @@ A web page for Google OAuth 2.0
 
 Upload a video to Youtube automatically
 
-### Credit
+## Credit
 
 This web page template is powered by [HTML5 UP](https://html5up.net/)

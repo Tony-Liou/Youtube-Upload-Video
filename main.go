@@ -223,6 +223,10 @@ func saveToken(file string, token *oauth2.Token) {
 	json.NewEncoder(f).Encode(token)
 }
 
+func handleError(err error, userMsg string) {
+	log.Fatalf("Error occured: %v, error: %v", userMsg, err)
+}
+
 var (
 	filename    = flag.String("filename", "", "Name of video file to upload")
 	title       = flag.String("title", "Test Title", "Video title")
@@ -269,6 +273,6 @@ func main() {
 	}
 
 	response, err := call.Media(file).Do()
-	//handleError(err, "")
+	handleError(err, "")
 	fmt.Printf("Upload successful! Video ID: %v\n", response.Id)
 }
