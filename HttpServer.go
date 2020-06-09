@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -8,12 +9,17 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/exec"
 	"os/signal"
+	"time"
+
+	"myUpload"
 )
 
 type frame struct {
-	Streaming bool `json:"streaming"`
-	Status    int  `json:"status"`
+	Streaming bool   `json:"streaming"` // isStreaming
+	Status    int    `json:"status"`
+	StreamID  string `json:"streamId"`
 }
 
 type indexHandler struct {
@@ -34,10 +40,12 @@ func (ih indexHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 		fmt.Printf("%s\n", reqBody)
 
-		err = json.Unmarshal(reqBody, &ih.frame)
-
-		if err == nil {
+		if err = json.Unmarshal(reqBody, &ih.frame); err == nil {
 			fmt.Print(ih.frame)
+		}
+
+		if ih.frame.Streaming {
+			doSomething(ih.frame.StreamID)
 		}
 
 		w.Write([]byte("Recieved a POST request\n"))
@@ -45,6 +53,36 @@ func (ih indexHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotImplemented)
 		w.Write([]byte(http.StatusText(http.StatusNotImplemented)))
 	}
+}
+
+// Dump RTMP streaming from 17 live
+func execStreamlink(StreamID string) {
+	curTime := time.Now().Format("_2006-01-02_15-04-05")
+
+	//fmt.Println(curTime)
+	app := "streamlink"
+
+	option := "-o"
+	filename := StreamID + curTime + ".flv"
+	url := "17.live/live/" + StreamID
+	quality := "best"
+
+	cmd := exec.Command(app, option, filename, url, quality)
+
+	var out bytes.Buffer
+	var stderr bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &stderr
+	err := cmd.Run()
+	if err != nil {
+		fmt.Println(fmt.Sprint(err) + ": " + stderr.String())
+	}
+	fmt.Println("Result: " + out.String())
+}
+
+func doSomething(streamID string) {
+	execStreamlink(streamID)
+	myUpload.UploadVideo()
 }
 
 func main() {
