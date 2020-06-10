@@ -228,29 +228,29 @@ func handleError(err error, userMsg string) {
 
 // VideoSetting is a struct
 type VideoSetting struct {
-	filename    string // Filename is a filename
-	title       string
-	description string
-	category    string // default is 22
-	keywords    string // seperate by comma
-	privacy     string // public, unlisted, and private
+	Filename    string // Filename is a filename
+	Title       string
+	Description string
+	Category    string // default is 22
+	Keywords    string // seperate by comma
+	Privacy     string // public, unlisted, and private
 }
 
 func checkVideoInfo(v *VideoSetting) {
-	if v.title == "" {
-		v.title = "Default title"
+	if v.Title == "" {
+		v.Title = "Default title"
 	}
 
-	if v.description == "" {
-		v.description = "Description"
+	if v.Description == "" {
+		v.Description = "Description"
 	}
 
-	if v.category == "" {
-		v.category = "22"
+	if v.Category == "" {
+		v.Category = "22"
 	}
 
-	if v.privacy == "" {
-		v.privacy = "private"
+	if v.Privacy == "" {
+		v.Privacy = "private"
 	}
 }
 
@@ -260,7 +260,7 @@ func UploadVideo(v *VideoSetting) string {
 
 	checkVideoInfo(v)
 
-	if v.filename == "" {
+	if v.Filename == "" {
 		log.Fatalf("You must provide a filename of a video file to upload")
 	}
 
@@ -273,24 +273,24 @@ func UploadVideo(v *VideoSetting) string {
 
 	upload := &youtube.Video{
 		Snippet: &youtube.VideoSnippet{
-			Title:       v.title,
-			Description: v.description,
-			CategoryId:  v.category,
+			Title:       v.Title,
+			Description: v.Description,
+			CategoryId:  v.Category,
 		},
-		Status: &youtube.VideoStatus{PrivacyStatus: v.privacy},
+		Status: &youtube.VideoStatus{PrivacyStatus: v.Privacy},
 	}
 
 	// The API returns a 400 Bad Request response if tags is an empty string.
-	if strings.Trim(v.keywords, "") != "" {
-		upload.Snippet.Tags = strings.Split(v.keywords, ",")
+	if strings.Trim(v.Keywords, "") != "" {
+		upload.Snippet.Tags = strings.Split(v.Keywords, ",")
 	}
 
 	call := service.Videos.Insert("snippet,status", upload)
 
-	file, err := os.Open(v.filename)
+	file, err := os.Open(v.Filename)
 	defer file.Close()
 	if err != nil {
-		log.Fatalf("Error opening %v: %v", v.filename, err)
+		log.Fatalf("Error opening %v: %v", v.Filename, err)
 	}
 
 	response, err := call.Media(file).Do()

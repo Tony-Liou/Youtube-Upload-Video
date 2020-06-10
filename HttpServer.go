@@ -17,9 +17,9 @@ import (
 )
 
 type frame struct {
-	Streaming bool   `json:"streaming"` // isStreaming
-	Status    int    `json:"status"`
-	StreamID  string `json:"streamId"`
+	IsStreaming bool   `json:"streaming"` // isStreaming
+	Status      int    `json:"status"`
+	StreamID    string `json:"streamId"`
 }
 
 type indexHandler struct {
@@ -44,8 +44,8 @@ func (ih indexHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			fmt.Print(ih.frame)
 		}
 
-		if ih.frame.Streaming {
-			doSomething(ih.frame.StreamID)
+		if ih.frame.IsStreaming {
+			go processStreaming(ih.frame.StreamID)
 		}
 
 		w.Write([]byte("Recieved a POST request\n"))
@@ -55,11 +55,10 @@ func (ih indexHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// Dump RTMP streaming from 17 live
-func execStreamlink(StreamID string) {
+// Dump RTMP streaming from 17 live, and return a current time string
+func execStreamlink(StreamID string) (string, string) {
 	curTime := time.Now().Format("_2006-01-02_15-04-05")
 
-	//fmt.Println(curTime)
 	app := "streamlink"
 
 	option := "-o"
@@ -78,11 +77,24 @@ func execStreamlink(StreamID string) {
 		fmt.Println(fmt.Sprint(err) + ": " + stderr.String())
 	}
 	fmt.Println("Result: " + out.String())
+
+	return curTime, filename
 }
 
-func doSomething(streamID string) {
-	execStreamlink(streamID)
-	myUpload.UploadVideo()
+// Executing streamlink to dump the live streaming.
+// After the live streaming ending, upload the video to Youtube.
+func processStreaming(streamID string) {
+	time, uri := execStreamlink(streamID)
+	setting := &myUpload.VideoSetting{
+		Filename:    uri,
+		Title:       time,
+		Description: "https://17.live/live/" + streamID,
+		Category:    "22",
+		Keywords:    "17Live," + streamID,
+		Privacy:     "unlisted",
+	}
+	videoID := myUpload.UploadVideo(setting)
+	log.Println("Video uploaded. ID: ", videoID)
 }
 
 func main() {
