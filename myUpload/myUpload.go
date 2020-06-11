@@ -6,44 +6,18 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
-	"net"
 	"net/http"
 	"net/url"
 	"os"
-	"os/exec"
 	"os/user"
 	"path/filepath"
-	"runtime"
 	"strings"
 
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
+	"google.golang.org/api/option"
 	"google.golang.org/api/youtube/v3"
 )
-
-// This variable indicates whether the script should launch a web server to
-// initiate the authorization flow or just display the URL in the terminal
-// window. Note the following instructions based on this setting:
-// * launchWebServer = true
-//   1. Use OAuth2 credentials for a web application
-//   2. Define authorized redirect URIs for the credential in the Google APIs
-//      Console and set the RedirectURL property on the config object to one
-//      of those redirect URIs. For example:
-//      config.RedirectURL = "http://localhost:8090"
-//   3. In the startWebServer function below, update the URL in this line
-//      to match the redirect URI you selected:
-//         listener, err := net.Listen("tcp", "localhost:8090")
-//      The redirect URI identifies the URI to which the user is sent after
-//      completing the authorization flow. The listener then captures the
-//      authorization code in the URL and passes it back to this script.
-// * launchWebServer = false
-//   1. Use OAuth2 credentials for an installed application. (When choosing
-//      the application type for the OAuth2 client ID, select "Other".)
-//   2. Set the redirect URI to "urn:ietf:wg:oauth:2.0:oob", like this:
-//      config.RedirectURL = "urn:ietf:wg:oauth:2.0:oob"
-//   3. When running the script, complete the auth flow. Then copy the
-//      authorization code from the browser and enter it on the command line.
-const launchWebServer = false
 
 const missingClientSecretsMessage = `
 Please configure OAuth 2.0
@@ -61,14 +35,16 @@ func getClient(scope string) *http.Client {
 
 	b, err := ioutil.ReadFile("client_secret.json")
 	if err != nil {
-		log.Fatalf("Unable to read client secret file: %v", err)
+		log.Printf("Unable to read client secret file: %v", err)
+		return nil
 	}
 
 	// If modifying the scope, delete your previously saved credentials
 	// at ~/.credentials/youtube-go.json
 	config, err := google.ConfigFromJSON(b, scope)
 	if err != nil {
-		log.Fatalf("Unable to parse client secret file to config: %v", err)
+		log.Printf("Unable to parse client secret file to config: %v", err)
+		return nil
 	}
 
 	// Use a redirect URI like this for a web app. The redirect URI must be a
@@ -79,18 +55,16 @@ func getClient(scope string) *http.Client {
 
 	cacheFile, err := tokenCacheFile()
 	if err != nil {
-		log.Fatalf("Unable to get path to cached credential file. %v", err)
+		log.Printf("Unable to get path to cached credential file. %v", err)
+		return nil
 	}
 	tok, err := tokenFromFile(cacheFile)
 	if err != nil {
 		authURL := config.AuthCodeURL("state-token", oauth2.AccessTypeOffline)
-		if launchWebServer {
-			fmt.Println("Trying to get token from web")
-			tok, err = getTokenFromWeb(config, authURL)
-		} else {
-			fmt.Println("Trying to get token from prompt")
-			tok, err = getTokenFromPrompt(config, authURL)
-		}
+
+		fmt.Println("Trying to get token from prompt")
+		tok, err = getTokenFromPrompt(config, authURL)
+
 		if err == nil {
 			saveToken(cacheFile, tok)
 		}
@@ -98,49 +72,12 @@ func getClient(scope string) *http.Client {
 	return config.Client(ctx, tok)
 }
 
-// startWebServer starts a web server that listens on http://localhost:8080.
-// The webserver waits for an oauth code in the three-legged auth flow.
-func startWebServer() (codeCh chan string, err error) {
-	listener, err := net.Listen("tcp", "localhost:8090")
-	if err != nil {
-		return nil, err
-	}
-	codeCh = make(chan string)
-
-	go http.Serve(listener, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		code := r.FormValue("code")
-		codeCh <- code // send code to OAuth flow
-		listener.Close()
-		w.Header().Set("Content-Type", "text/plain")
-		fmt.Fprintf(w, "Received code: %v\r\nYou can now safely close this browser window.", code)
-	}))
-
-	return codeCh, nil
-}
-
-// openURL opens a browser window to the specified location.
-// This code originally appeared at:
-//   http://stackoverflow.com/questions/10377243/how-can-i-launch-a-process-that-is-not-a-file-in-go
-func openURL(url string) error {
-	var err error
-	switch runtime.GOOS {
-	case "linux":
-		err = exec.Command("xdg-open", url).Start()
-	case "windows":
-		err = exec.Command("rundll32", "url.dll,FileProtocolHandler", "http://localhost:4001/").Start()
-	case "darwin":
-		err = exec.Command("open", url).Start()
-	default:
-		err = fmt.Errorf("Cannot open URL %s on this platform", url)
-	}
-	return err
-}
-
 // Exchange the authorization code for an access token
 func exchangeToken(config *oauth2.Config, code string) (*oauth2.Token, error) {
 	tok, err := config.Exchange(oauth2.NoContext, code)
 	if err != nil {
-		log.Fatalf("Unable to retrieve token %v", err)
+		log.Printf("Unable to retrieve token %v", err)
+		return nil, err
 	}
 	return tok, nil
 }
@@ -154,32 +91,10 @@ func getTokenFromPrompt(config *oauth2.Config, authURL string) (*oauth2.Token, e
 		"line: \n%v\n", authURL)
 
 	if _, err := fmt.Scan(&code); err != nil {
-		log.Fatalf("Unable to read authorization code %v", err)
-	}
-	fmt.Println(authURL)
-	return exchangeToken(config, code)
-}
-
-// getTokenFromWeb uses Config to request a Token.
-// It returns the retrieved Token.
-func getTokenFromWeb(config *oauth2.Config, authURL string) (*oauth2.Token, error) {
-	codeCh, err := startWebServer()
-	if err != nil {
-		fmt.Printf("Unable to start a web server.")
+		log.Printf("Unable to read authorization code %v", err)
 		return nil, err
 	}
-
-	err = openURL(authURL)
-	if err != nil {
-		log.Fatalf("Unable to open authorization URL in web server: %v", err)
-	} else {
-		fmt.Println("Your browser has been opened to an authorization URL.",
-			" This program will resume once authorization has been provided.")
-		fmt.Println(authURL)
-	}
-
-	// Wait for the web server to get the code.
-	code := <-codeCh
+	fmt.Println(authURL)
 	return exchangeToken(config, code)
 }
 
@@ -216,14 +131,11 @@ func saveToken(file string, token *oauth2.Token) {
 	fmt.Printf("Saving credential file to: %s\n", file)
 	f, err := os.OpenFile(file, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
 	if err != nil {
-		log.Fatalf("Unable to cache oauth token: %v", err)
+		log.Printf("Unable to cache oauth token: %v", err)
+		return
 	}
 	defer f.Close()
 	json.NewEncoder(f).Encode(token)
-}
-
-func handleError(err error, userMsg string) {
-	log.Fatalf("Error occured: %v, error: %v", userMsg, err)
 }
 
 // VideoSetting is a struct
@@ -261,14 +173,22 @@ func UploadVideo(v *VideoSetting) string {
 	checkVideoInfo(v)
 
 	if v.Filename == "" {
-		log.Fatalf("You must provide a filename of a video file to upload")
+		log.Printf("You must provide a filename of a video file to upload")
+		return ""
 	}
 
 	client := getClient(youtube.YoutubeUploadScope)
 
-	service, err := youtube.New(client)
+	if client == nil {
+		log.Println("Upload failed")
+		return ""
+	}
+
+	ctx := context.Background()
+	service, err := youtube.NewService(ctx, option.WithHTTPClient(client))
 	if err != nil {
-		log.Fatalf("Error creating YouTube client: %v", err)
+		log.Printf("Error creating YouTube client: %v", err)
+		return ""
 	}
 
 	upload := &youtube.Video{
@@ -290,11 +210,15 @@ func UploadVideo(v *VideoSetting) string {
 	file, err := os.Open(v.Filename)
 	defer file.Close()
 	if err != nil {
-		log.Fatalf("Error opening %v: %v", v.Filename, err)
+		log.Printf("Error opening %v: %v", v.Filename, err)
+		return ""
 	}
 
 	response, err := call.Media(file).Do()
-	handleError(err, "")
+	if err != nil {
+		log.Println(err)
+		return ""
+	}
 
 	fmt.Printf("Upload successful! Video ID: %v\n", response.Id)
 	return response.Id

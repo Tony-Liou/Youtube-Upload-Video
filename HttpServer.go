@@ -17,7 +17,7 @@ import (
 )
 
 type frame struct {
-	IsStreaming bool   `json:"streaming"` // isStreaming
+	IsStreaming bool   `json:"isStreaming"`
 	Status      int    `json:"status"`
 	StreamID    string `json:"streamId"`
 }
@@ -32,16 +32,17 @@ func (ih indexHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		for k, v := range r.URL.Query() {
 			fmt.Printf("%s: %s\n", k, v)
 		}
+		w.Write([]byte("Get\n"))
 	case http.MethodPost:
 		reqBody, err := ioutil.ReadAll(r.Body)
 		if err != nil {
-			log.Fatal(err)
+			log.Println(err)
 		}
 
-		fmt.Printf("%s\n", reqBody)
+		fmt.Printf("Request body=%s\n", reqBody)
 
 		if err = json.Unmarshal(reqBody, &ih.frame); err == nil {
-			fmt.Print(ih.frame)
+			log.Print(ih.frame)
 		}
 
 		if ih.frame.IsStreaming {
@@ -55,7 +56,7 @@ func (ih indexHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// Dump RTMP streaming from 17 live, and return a current time string
+// Dump RTMP streaming from 17 live, and return a current time string and a filename (with path)
 func execStreamlink(StreamID string) (string, string) {
 	curTime := time.Now().Format("_2006-01-02_15-04-05")
 
@@ -72,19 +73,36 @@ func execStreamlink(StreamID string) (string, string) {
 	var stderr bytes.Buffer
 	cmd.Stdout = &out
 	cmd.Stderr = &stderr
+
 	err := cmd.Run()
 	if err != nil {
-		fmt.Println(fmt.Sprint(err) + ": " + stderr.String())
+		log.Println(fmt.Sprint(err) + ": " + stderr.String())
+		//return curTime, ""
 	}
 	fmt.Println("Result: " + out.String())
 
 	return curTime, filename
 }
 
+// Execute shell to remove the video file
+func removeFile(path string) {
+	cmd := exec.Command("rm", path)
+
+	err := cmd.Run()
+	if err != nil {
+		log.Println(err)
+	} else {
+		log.Println("File deleted. ", path)
+	}
+}
+
 // Executing streamlink to dump the live streaming.
 // After the live streaming ending, upload the video to Youtube.
 func processStreaming(streamID string) {
+	log.Println("Processing streaming...")
+
 	time, uri := execStreamlink(streamID)
+
 	setting := &myUpload.VideoSetting{
 		Filename:    uri,
 		Title:       time,
@@ -94,7 +112,13 @@ func processStreaming(streamID string) {
 		Privacy:     "unlisted",
 	}
 	videoID := myUpload.UploadVideo(setting)
+	if videoID == "" {
+		log.Println("Upload video failed.")
+		return
+	}
 	log.Println("Video uploaded. ID: ", videoID)
+
+	removeFile(uri)
 }
 
 func main() {
