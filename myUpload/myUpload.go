@@ -138,7 +138,7 @@ func saveToken(file string, token *oauth2.Token) {
 	json.NewEncoder(f).Encode(token)
 }
 
-// VideoSetting is a struct
+// VideoSetting setting the video info that will be shown or be configured on Youtube
 type VideoSetting struct {
 	Filename    string // Filename is a filename
 	Title       string
@@ -146,6 +146,7 @@ type VideoSetting struct {
 	Category    string // default is 22
 	Keywords    string // seperate by comma
 	Privacy     string // public, unlisted, and private
+	Language    string
 }
 
 func checkVideoInfo(v *VideoSetting) {
@@ -164,6 +165,10 @@ func checkVideoInfo(v *VideoSetting) {
 	if v.Privacy == "" {
 		v.Privacy = "private"
 	}
+
+	// if v.Language == "" {
+	// 	v.Language = "Chinese"
+	// }
 }
 
 // UploadVideo will upload a video to Youtube.
@@ -196,6 +201,7 @@ func UploadVideo(v *VideoSetting) string {
 			Title:       v.Title,
 			Description: v.Description,
 			CategoryId:  v.Category,
+			// DefaultAudioLanguage: v.Language,
 		},
 		Status: &youtube.VideoStatus{PrivacyStatus: v.Privacy},
 	}
@@ -214,12 +220,15 @@ func UploadVideo(v *VideoSetting) string {
 		return ""
 	}
 
+	log.Println("Starting uploading the video", v.Filename)
 	response, err := call.Media(file).Do()
 	if err != nil {
 		log.Println(err)
 		return ""
 	}
+	log.Println("Uploading finished.")
 
-	fmt.Printf("Upload successful! Video ID: %v\n", response.Id)
+	//fmt.Printf("Upload successful! Video ID: %v\n", response.Id)
+
 	return response.Id
 }

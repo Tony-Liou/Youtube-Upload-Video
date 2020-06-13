@@ -13,13 +13,13 @@ import (
 	"os/signal"
 	"time"
 
-	"myUpload"
+	"github.com/Tony-Liou/Youtube-Upload-Video/myUpload"
 )
 
 type frame struct {
 	IsStreaming bool   `json:"isStreaming"`
-	Status      int    `json:"status"`
 	StreamID    string `json:"streamId"`
+	VideoStatus string `json:"videoStatus"` // public, unlisted, private
 }
 
 type indexHandler struct {
@@ -29,9 +29,9 @@ type indexHandler struct {
 func (ih indexHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
-		for k, v := range r.URL.Query() {
-			fmt.Printf("%s: %s\n", k, v)
-		}
+		// for k, v := range r.URL.Query() {
+		// 	fmt.Printf("%s: %s\n", k, v)
+		// }
 		w.Write([]byte("Get\n"))
 	case http.MethodPost:
 		reqBody, err := ioutil.ReadAll(r.Body)
@@ -42,14 +42,18 @@ func (ih indexHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("Request body=%s\n", reqBody)
 
 		if err = json.Unmarshal(reqBody, &ih.frame); err == nil {
-			log.Print(ih.frame)
+			log.Println(ih.frame)
+		} else {
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte("Need json data\n" + err.Error()))
 		}
 
 		if ih.frame.IsStreaming {
 			go processStreaming(ih.frame.StreamID)
 		}
 
-		w.Write([]byte("Recieved a POST request\n"))
+		msg := fmt.Sprintf("isStreaming: %v\n", ih.frame.IsStreaming)
+		w.Write([]byte(msg))
 	default:
 		w.WriteHeader(http.StatusNotImplemented)
 		w.Write([]byte(http.StatusText(http.StatusNotImplemented)))
@@ -58,7 +62,7 @@ func (ih indexHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 // Dump RTMP streaming from 17 live, and return a current time string and a filename (with path)
 func execStreamlink(StreamID string) (string, string) {
-	curTime := time.Now().Format("_2006-01-02_15-04-05")
+	curTime := time.Now().Format("_2006-01-02_15-04-05_Mon")
 
 	app := "streamlink"
 
