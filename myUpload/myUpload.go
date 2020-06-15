@@ -60,14 +60,15 @@ func getClient(scope string) *http.Client {
 	}
 	tok, err := tokenFromFile(cacheFile)
 	if err != nil {
-		authURL := config.AuthCodeURL("state-token", oauth2.AccessTypeOffline)
+		log.Println(err)
+		// authURL := config.AuthCodeURL("state-token", oauth2.AccessTypeOffline)
 
-		fmt.Println("Trying to get token from prompt")
-		tok, err = getTokenFromPrompt(config, authURL)
+		// fmt.Println("Trying to get token from prompt")
+		// tok, err = getTokenFromPrompt(config, authURL)
 
-		if err == nil {
-			saveToken(cacheFile, tok)
-		}
+		// if err == nil {
+		// 	saveToken(cacheFile, tok)
+		// }
 	}
 	return config.Client(ctx, tok)
 }
@@ -227,8 +228,6 @@ func UploadVideo(v *VideoSetting) string {
 		return ""
 	}
 	log.Println("Uploading finished.")
-
-	//fmt.Printf("Upload successful! Video ID: %v\n", response.Id)
 
 	return response.Id
 }

@@ -26,6 +26,17 @@ type indexHandler struct {
 	frame frame
 }
 
+type messageObjects struct {
+	MsgType string `json:"type"`
+	Text    string `json:"text"` // max 5000
+}
+
+type lineBody struct {
+	To                   string           `json:"to"`
+	Messages             []messageObjects `json:"messages"` // max 5
+	NotificationDisabled bool             `json:"notificationDisabled,omitempty"`
+}
+
 func (ih indexHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
@@ -42,7 +53,7 @@ func (ih indexHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("Request body=%s\n", reqBody)
 
 		if err = json.Unmarshal(reqBody, &ih.frame); err == nil {
-			log.Println(ih.frame)
+			fmt.Println(ih.frame)
 		} else {
 			w.WriteHeader(http.StatusBadRequest)
 			w.Write([]byte("Need json data\n" + err.Error()))
@@ -52,7 +63,7 @@ func (ih indexHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			go processStreaming(ih.frame.StreamID)
 		}
 
-		msg := fmt.Sprintf("isStreaming: %v\n", ih.frame.IsStreaming)
+		msg := fmt.Sprintf("%v is streaming: %v\n", ih.frame.StreamID, ih.frame.IsStreaming)
 		w.Write([]byte(msg))
 	default:
 		w.WriteHeader(http.StatusNotImplemented)
@@ -78,12 +89,12 @@ func execStreamlink(StreamID string) (string, string) {
 	cmd.Stdout = &out
 	cmd.Stderr = &stderr
 
+	log.Println("Streamlink starting...")
 	err := cmd.Run()
 	if err != nil {
 		log.Println(fmt.Sprint(err) + ": " + stderr.String())
-		//return curTime, ""
 	}
-	fmt.Println("Result: " + out.String())
+	log.Println("Result: ", out.String())
 
 	return curTime, filename
 }
@@ -95,8 +106,6 @@ func removeFile(path string) {
 	err := cmd.Run()
 	if err != nil {
 		log.Println(err)
-	} else {
-		log.Println("File deleted. ", path)
 	}
 }
 
@@ -123,9 +132,66 @@ func processStreaming(streamID string) {
 	log.Println("Video uploaded. ID: ", videoID)
 
 	removeFile(uri)
+
+	lineMsg := fmt.Sprintf("StreamID: %s VoD is uploaded. Video ID: %s\n", streamID, videoID)
+	pushLineMsg(lineMsg)
+}
+
+// Send Line message to the group chat
+func pushLineMsg(msg string) {
+	token := `Enter your channel access token`
+	url := "https://api.line.me/v2/bot/message/push"
+
+	msgObj := messageObjects{
+		MsgType: "text",
+		Text:    msg,
+	}
+
+	obj := lineBody{
+		To: "Ccfc3c76624b68ec16994ed9e9da00d93",
+		Messages: []messageObjects{
+			msgObj,
+		},
+	}
+
+	jsonBytes, err := json.Marshal(obj)
+	if err != nil {
+		log.Printf("JSON marshal failed: %v, Line push message failed", err)
+		return
+	}
+
+	req, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(jsonBytes))
+	if err != nil {
+		log.Println(err)
+		return
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	client := &http.Client{}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		log.Printf("Status code: %v, status: %v\n", resp.StatusCode, resp.Status)
+	}
 }
 
 func main() {
+	f, err := os.OpenFile("myServer.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+	if err != nil {
+		log.Fatalf("error opening file: %v", err)
+	}
+	defer f.Close()
+
+	log.SetOutput(f)
+
 	port := ":8080"
 	var myHandler indexHandler
 	srv := &http.Server{
@@ -147,8 +213,8 @@ func main() {
 		close(idleConnsClosed)
 	}()
 
-	fmt.Println("Starting server... Port is ", port)
-	err := srv.ListenAndServe()
+	log.Println("Starting server... Port is ", port)
+	err = srv.ListenAndServe()
 	if err != nil {
 		// Error starting or closing listener:
 		log.Fatalf("HTTP server ListenAndServe: %v", err)
