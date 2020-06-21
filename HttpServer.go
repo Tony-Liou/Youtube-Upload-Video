@@ -16,6 +16,8 @@ import (
 	"github.com/Tony-Liou/Youtube-Upload-Video/myUpload"
 )
 
+var isDownloading bool // Streamlink is dumping the stream
+
 type frame struct {
 	IsStreaming bool   `json:"isStreaming"`
 	StreamID    string `json:"streamId"`
@@ -40,9 +42,6 @@ type lineBody struct {
 func (ih indexHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
-		// for k, v := range r.URL.Query() {
-		// 	fmt.Printf("%s: %s\n", k, v)
-		// }
 		w.Write([]byte("Get\n"))
 	case http.MethodPost:
 		reqBody, err := ioutil.ReadAll(r.Body)
@@ -59,7 +58,7 @@ func (ih indexHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			w.Write([]byte("Need json data\n" + err.Error()))
 		}
 
-		if ih.frame.IsStreaming {
+		if ih.frame.IsStreaming && !isDownloading {
 			go processStreaming(ih.frame.StreamID)
 		}
 
@@ -73,12 +72,12 @@ func (ih indexHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 // Dump RTMP streaming from 17 live, and return a current time string and a filename (with path)
 func execStreamlink(StreamID string) (string, string) {
-	curTime := time.Now().Format("_2006-01-02_15-04-05_Mon")
+	curTime := time.Now().Format("2006-01-02_15-04-05_Mon")
 
 	app := "streamlink"
 
 	option := "-o"
-	filename := StreamID + curTime + ".flv"
+	filename := StreamID + "_" + curTime + ".flv"
 	url := "17.live/live/" + StreamID
 	quality := "best"
 
@@ -114,7 +113,9 @@ func removeFile(path string) {
 func processStreaming(streamID string) {
 	log.Println("Processing streaming...")
 
+	isDownloading = true
 	time, uri := execStreamlink(streamID)
+	isDownloading = false
 
 	setting := &myUpload.VideoSetting{
 		Filename:    uri,
@@ -133,41 +134,18 @@ func processStreaming(streamID string) {
 
 	removeFile(uri)
 
-	lineMsg := fmt.Sprintf("StreamID: %s VoD is uploaded. Video ID: %s\n", streamID, videoID)
-	pushLineMsg(lineMsg)
+	sendVideoInfo(videoID)
 }
 
-// Send Line message to the group chat
-func pushLineMsg(msg string) {
-	token := `Enter your channel access token`
-	url := "https://api.line.me/v2/bot/message/push"
+func sendVideoInfo(videoID string) {
+	url := `address` // TODO change this
+	url += `?videoID=` + videoID
 
-	msgObj := messageObjects{
-		MsgType: "text",
-		Text:    msg,
-	}
-
-	obj := lineBody{
-		To: "Ccfc3c76624b68ec16994ed9e9da00d93",
-		Messages: []messageObjects{
-			msgObj,
-		},
-	}
-
-	jsonBytes, err := json.Marshal(obj)
-	if err != nil {
-		log.Printf("JSON marshal failed: %v, Line push message failed", err)
-		return
-	}
-
-	req, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(jsonBytes))
+	req, err := http.NewRequest(http.MethodGet, url, bytes.NewBuffer(nil))
 	if err != nil {
 		log.Println(err)
 		return
 	}
-
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+token)
 
 	client := &http.Client{}
 
