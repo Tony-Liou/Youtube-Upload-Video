@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"strconv"
 	"time"
 
 	"github.com/Tony-Liou/Youtube-Upload-Video/myUpload"
@@ -28,35 +29,27 @@ type indexHandler struct {
 	frame frame
 }
 
-type messageObjects struct {
-	MsgType string `json:"type"`
-	Text    string `json:"text"` // max 5000
-}
-
-type lineBody struct {
-	To                   string           `json:"to"`
-	Messages             []messageObjects `json:"messages"` // max 5
-	NotificationDisabled bool             `json:"notificationDisabled,omitempty"`
-}
-
 func (ih indexHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
-		w.Write([]byte("Get\n"))
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("GET"))
 	case http.MethodPost:
 		reqBody, err := ioutil.ReadAll(r.Body)
 		if err != nil {
 			log.Println(err)
+			http.Error(w, "can't read body", http.StatusBadRequest)
+			return
 		}
 
 		fmt.Printf("Request body=%s\n", reqBody)
 
-		if err = json.Unmarshal(reqBody, &ih.frame); err == nil {
-			fmt.Println(ih.frame)
-		} else {
-			w.WriteHeader(http.StatusBadRequest)
-			w.Write([]byte("Need json data\n" + err.Error()))
+		if err = json.Unmarshal(reqBody, &ih.frame); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			log.Println(err)
+			return
 		}
+		fmt.Println(ih.frame)
 
 		if ih.frame.IsStreaming && !isDownloading {
 			go processStreaming(ih.frame.StreamID)
@@ -72,12 +65,14 @@ func (ih indexHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 // Dump RTMP streaming from 17 live, and return a current time string and a filename (with path)
 func execStreamlink(StreamID string) (string, string) {
-	curTime := time.Now().Format("2006-01-02_15-04-05_Mon")
+	t := time.Now()
+	curTime := t.Format("2006/01/02_15:04:05_Mon")
+	curTimeStamp := strconv.FormatInt(t.Unix(), 10)
 
 	app := "streamlink"
 
 	option := "-o"
-	filename := StreamID + "_" + curTime + ".flv"
+	filename := StreamID + "_" + curTimeStamp + ".flv"
 	url := "17.live/live/" + StreamID
 	quality := "best"
 
@@ -100,9 +95,7 @@ func execStreamlink(StreamID string) (string, string) {
 
 // Execute shell to remove the video file
 func removeFile(path string) {
-	cmd := exec.Command("rm", path)
-
-	err := cmd.Run()
+	err := exec.Command("rm", path).Run()
 	if err != nil {
 		log.Println(err)
 	}
@@ -141,15 +134,7 @@ func sendVideoInfo(videoID string) {
 	url := `address` // TODO change this
 	url += `?videoID=` + videoID
 
-	req, err := http.NewRequest(http.MethodGet, url, bytes.NewBuffer(nil))
-	if err != nil {
-		log.Println(err)
-		return
-	}
-
-	client := &http.Client{}
-
-	resp, err := client.Do(req)
+	resp, err := http.Get(url)
 	if err != nil {
 		log.Println(err)
 		return

@@ -167,9 +167,9 @@ func checkVideoInfo(v *VideoSetting) {
 		v.Privacy = "private"
 	}
 
-	// if v.Language == "" {
-	// 	v.Language = "Chinese"
-	// }
+	if v.Language == "" {
+		v.Language = "zh-TW"
+	}
 }
 
 // UploadVideo will upload a video to Youtube.
@@ -179,14 +179,14 @@ func UploadVideo(v *VideoSetting) string {
 	checkVideoInfo(v)
 
 	if v.Filename == "" {
-		log.Printf("You must provide a filename of a video file to upload")
+		log.Println("You must provide a filename of a video file to upload")
 		return ""
 	}
 
 	client := getClient(youtube.YoutubeUploadScope)
 
 	if client == nil {
-		log.Println("Upload failed")
+		log.Println("Upload the video to Youtube failed")
 		return ""
 	}
 
@@ -199,10 +199,11 @@ func UploadVideo(v *VideoSetting) string {
 
 	upload := &youtube.Video{
 		Snippet: &youtube.VideoSnippet{
-			Title:       v.Title,
-			Description: v.Description,
-			CategoryId:  v.Category,
-			// DefaultAudioLanguage: v.Language,
+			Title:                v.Title,
+			Description:          v.Description,
+			CategoryId:           v.Category,
+			DefaultAudioLanguage: v.Language,
+			DefaultLanguage:      v.Language,
 		},
 		Status: &youtube.VideoStatus{PrivacyStatus: v.Privacy},
 	}
@@ -215,11 +216,11 @@ func UploadVideo(v *VideoSetting) string {
 	call := service.Videos.Insert("snippet,status", upload)
 
 	file, err := os.Open(v.Filename)
-	defer file.Close()
 	if err != nil {
 		log.Printf("Error opening %v: %v", v.Filename, err)
 		return ""
 	}
+	defer file.Close()
 
 	log.Println("Starting uploading the video", v.Filename)
 	response, err := call.Media(file).Do()
