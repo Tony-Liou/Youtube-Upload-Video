@@ -12,12 +12,14 @@ import (
 	"os/exec"
 	"os/signal"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/Tony-Liou/Youtube-Upload-Video/myUpload"
 )
 
-var isDownloading bool // Streamlink is dumping the stream
+var isDownloading bool       // Streamlink is dumping the stream
+var isOnline map[string]bool // key is stream ID and value is online or not
 
 type frame struct {
 	IsStreaming bool   `json:"isStreaming"`
@@ -51,8 +53,11 @@ func (ih indexHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		fmt.Println(ih.frame)
 
-		if ih.frame.IsStreaming && !isDownloading {
-			go processStreaming(ih.frame.StreamID)
+		if ih.frame.StreamID != "" {
+			isOnline[ih.frame.StreamID] = ih.frame.IsStreaming
+			if isOnline[ih.frame.StreamID] && !isDownloading {
+				go processStreaming(ih.frame.StreamID)
+			}
 		}
 
 		msg := fmt.Sprintf("%v is streaming: %v\n", ih.frame.StreamID, ih.frame.IsStreaming)
@@ -94,7 +99,7 @@ func execStreamlink(StreamID string) (string, string) {
 }
 
 // Execute shell to remove the video file
-func removeFile(path string) {
+func removeVideoFile(path string) {
 	err := exec.Command("rm", path).Run()
 	if err != nil {
 		log.Println(err)
@@ -107,12 +112,25 @@ func processStreaming(streamID string) {
 	log.Println("Processing streaming...")
 
 	isDownloading = true
-	time, uri := execStreamlink(streamID)
+	recordTime, uri := execStreamlink(streamID)
 	isDownloading = false
+
+	// Check the streamer is really offline or just a temporary hang
+	time.AfterFunc(time.Minute, func() {
+		if !isOnline[streamID] {
+			return
+		}
+
+		if isActive(streamID) {
+			go processStreaming(streamID)
+		} else {
+			isOnline[streamID] = false
+		}
+	})
 
 	setting := &myUpload.VideoSetting{
 		Filename:    uri,
-		Title:       time,
+		Title:       recordTime,
 		Description: "https://17.live/live/" + streamID,
 		Category:    "22",
 		Keywords:    "17Live," + streamID,
@@ -125,13 +143,13 @@ func processStreaming(streamID string) {
 	}
 	log.Println("Video uploaded. ID: ", videoID)
 
-	removeFile(uri)
+	removeVideoFile(uri)
 
 	sendVideoInfo(videoID)
 }
 
 func sendVideoInfo(videoID string) {
-	url := `address` // TODO change this
+	url := `{youraddress}` // TODO change this
 	url += `?videoID=` + videoID
 
 	resp, err := http.Get(url)
@@ -144,6 +162,37 @@ func sendVideoInfo(videoID string) {
 	if resp.StatusCode != http.StatusOK {
 		log.Printf("Status code: %v, status: %v\n", resp.StatusCode, resp.Status)
 	}
+}
+
+// Check the streamer is online or not
+func isActive(streamID string) bool {
+	url := `https://api-dsa.17app.co/api/v1/lives/{sID}/viewers/alive`
+
+	url = strings.Replace(url, "{sID}", streamID, 1)
+
+	tmpMap := make(map[string]string, 1)
+	tmpMap["liveStreamID"] = streamID
+	jsonBytes, _ := json.Marshal(tmpMap)
+
+	req, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(jsonBytes))
+	if err != nil {
+		log.Println(err)
+		return false
+	}
+
+	req.Header.Add("Content-Type", "application/json")
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Printf("isActive sent a request failed. %v", err)
+		return false
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusOK {
+		return true
+	}
+	return false
 }
 
 func main() {
@@ -176,6 +225,7 @@ func main() {
 		close(idleConnsClosed)
 	}()
 
+	isOnline = make(map[string]bool)
 	log.Println("Starting server... Port is ", port)
 	err = srv.ListenAndServe()
 	if err != nil {
