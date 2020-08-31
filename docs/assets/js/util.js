@@ -6,7 +6,7 @@
 	 */
 	$.fn.navList = function() {
 
-		var	$this = $(this);
+		var	$this = $(this),
 			$a = $this.find('a'),
 			b = [];
 
