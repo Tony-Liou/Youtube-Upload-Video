@@ -3,7 +3,6 @@ package myUpload
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -19,14 +18,16 @@ import (
 	"google.golang.org/api/youtube/v3"
 )
 
-const missingClientSecretsMessage = `
-Please configure OAuth 2.0
-To make this sample run, you need to populate the client_secrets.json file
-found at:
-   %v
-with information from the {{ Google Cloud Console }}{{ https://cloud.google.com/console }}For more information about the client_secrets.json file format, please visit:
-https://developers.google.com/api-client-library/python/guide/aaa_client_secrets
-`
+// VideoSetting setting the video info that will be shown or be configured on Youtube
+type VideoSetting struct {
+	Filename    string // Filename is a filename
+	Title       string
+	Description string
+	Category    string // default is 22
+	Keywords    string // seperate by comma
+	Privacy     string // public, unlisted, and private
+	Language    string
+}
 
 // getClient uses a Context and Config to retrieve a Token
 // then generate a Client. It returns the generated Client.
@@ -61,42 +62,8 @@ func getClient(scope string) *http.Client {
 	tok, err := tokenFromFile(cacheFile)
 	if err != nil {
 		log.Println(err)
-		// authURL := config.AuthCodeURL("state-token", oauth2.AccessTypeOffline)
-
-		// fmt.Println("Trying to get token from prompt")
-		// tok, err = getTokenFromPrompt(config, authURL)
-
-		// if err == nil {
-		// 	saveToken(cacheFile, tok)
-		// }
 	}
 	return config.Client(ctx, tok)
-}
-
-// Exchange the authorization code for an access token
-func exchangeToken(config *oauth2.Config, code string) (*oauth2.Token, error) {
-	tok, err := config.Exchange(oauth2.NoContext, code)
-	if err != nil {
-		log.Printf("Unable to retrieve token %v", err)
-		return nil, err
-	}
-	return tok, nil
-}
-
-// getTokenFromPrompt uses Config to request a Token and prompts the user
-// to enter the token on the command line. It returns the retrieved Token.
-func getTokenFromPrompt(config *oauth2.Config, authURL string) (*oauth2.Token, error) {
-	var code string
-	fmt.Printf("Go to the following link in your browser. After completing "+
-		"the authorization flow, enter the authorization code on the command "+
-		"line: \n%v\n", authURL)
-
-	if _, err := fmt.Scan(&code); err != nil {
-		log.Printf("Unable to read authorization code %v", err)
-		return nil, err
-	}
-	fmt.Println(authURL)
-	return exchangeToken(config, code)
 }
 
 // tokenCacheFile generates credential file path/filename.
@@ -125,31 +92,6 @@ func tokenFromFile(file string) (*oauth2.Token, error) {
 	return t, err
 }
 
-// saveToken uses a file path to create a file and store the
-// token in it.
-func saveToken(file string, token *oauth2.Token) {
-	fmt.Println("trying to save token")
-	fmt.Printf("Saving credential file to: %s\n", file)
-	f, err := os.OpenFile(file, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
-	if err != nil {
-		log.Printf("Unable to cache oauth token: %v", err)
-		return
-	}
-	defer f.Close()
-	json.NewEncoder(f).Encode(token)
-}
-
-// VideoSetting setting the video info that will be shown or be configured on Youtube
-type VideoSetting struct {
-	Filename    string // Filename is a filename
-	Title       string
-	Description string
-	Category    string // default is 22
-	Keywords    string // seperate by comma
-	Privacy     string // public, unlisted, and private
-	Language    string
-}
-
 func checkVideoInfo(v *VideoSetting) {
 	if v.Title == "" {
 		v.Title = "Default title"
@@ -175,13 +117,12 @@ func checkVideoInfo(v *VideoSetting) {
 // UploadVideo will upload a video to Youtube.
 // And you can use this function to approach this
 func UploadVideo(v *VideoSetting) string {
-
-	checkVideoInfo(v)
-
 	if v.Filename == "" {
 		log.Println("You must provide a filename of a video file to upload")
 		return ""
 	}
+
+	checkVideoInfo(v)
 
 	client := getClient(youtube.YoutubeUploadScope)
 
@@ -213,7 +154,7 @@ func UploadVideo(v *VideoSetting) string {
 		upload.Snippet.Tags = strings.Split(v.Keywords, ",")
 	}
 
-	call := service.Videos.Insert("snippet,status", upload)
+	call := service.Videos.Insert([]string{"snippet", "status"}, upload)
 
 	file, err := os.Open(v.Filename)
 	if err != nil {
@@ -228,7 +169,7 @@ func UploadVideo(v *VideoSetting) string {
 		log.Println(err)
 		return ""
 	}
-	log.Println("Uploading finished.")
+	log.Println("Video uploaded")
 
 	return response.Id
 }
