@@ -1,4 +1,4 @@
-module Tony-Liou/Youtube-Upload-Video
+module github.com/Tony-Liou/Youtube-Upload-Video
 
 go 1.14
 
