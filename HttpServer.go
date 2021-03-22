@@ -12,11 +12,11 @@ import (
 )
 
 var isDownloading bool       // Streamlink is dumping the stream
-var isOnline map[string]bool // key is stream ID and value is online or not
+var isOnline map[string]bool // key is the stream url and value indicates it is online or not
 
 type frame struct {
 	IsStreaming bool   `json:"isStreaming"`
-	StreamID    string `json:"streamId"`
+	StreamURL   string `json:"streamURL"`
 	VideoStatus string `json:"videoStatus"` // public, unlisted, private
 }
 
@@ -43,14 +43,14 @@ func (ih indexHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		if ih.frame.StreamID != "" {
-			isOnline[ih.frame.StreamID] = ih.frame.IsStreaming
-			if isOnline[ih.frame.StreamID] && !isDownloading {
-				go processStreaming(ih.frame.StreamID)
+		if ih.frame.StreamURL != "" {
+			isOnline[ih.frame.StreamURL] = ih.frame.IsStreaming
+			if isOnline[ih.frame.StreamURL] && !isDownloading {
+				go processStreaming(ih.frame.StreamURL)
 			}
 		}
 
-		msg := fmt.Sprintf("%v is streaming: %v\n", ih.frame.StreamID, ih.frame.IsStreaming)
+		msg := fmt.Sprintf("%v is streaming: %v\n", ih.frame.StreamURL, ih.frame.IsStreaming)
 		w.Write([]byte(msg))
 	default:
 		w.WriteHeader(http.StatusNotImplemented)
@@ -59,7 +59,11 @@ func (ih indexHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	f, err := os.OpenFile("myServer.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+	logFileName := os.Getenv("LOG_FILE_NAME")
+	if logFileName == "" {
+		logFileName = "myServer.log"
+	}
+	f, err := os.OpenFile(logFileName, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
 		log.Fatalf("error opening log file: %v", err)
 	}

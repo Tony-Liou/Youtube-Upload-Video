@@ -13,3 +13,4 @@
 
 # HttpServer.go log
 *.log
+HttpServer
