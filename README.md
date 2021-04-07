@@ -1,6 +1,7 @@
 # Youtube Upload Video
 
-Download a [17 Live](https://17.live/) live streaming and upload the dumped video to Youtube after the stream is ended.
+Download a live streaming and upload the dumped video to Youtube after the stream is ended.
+If upload video to Youtube failed, uploading to Google Drive instead.
 
 ## Installation
 

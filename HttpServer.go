@@ -46,7 +46,7 @@ func (ih indexHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if ih.frame.StreamURL != "" {
 			isOnline[ih.frame.StreamURL] = ih.frame.IsStreaming
 			if isOnline[ih.frame.StreamURL] && !isDownloading {
-				go processStreaming(ih.frame.StreamURL)
+				go processStreaming(ih.frame.StreamURL, ih.frame.VideoStatus)
 			}
 		}
 

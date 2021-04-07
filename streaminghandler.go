@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"time"
 
+	gdrive "github.com/Tony-Liou/Youtube-Upload-Video/Google_Drive"
 	"github.com/Tony-Liou/Youtube-Upload-Video/myUpload"
 )
 
@@ -73,7 +74,7 @@ func notifyVideoId(videoID string) {
 
 // Executing streamlink to dump the live streaming.
 // After the live streaming ending, upload the video to Youtube.
-func processStreaming(streamURL string) {
+func processStreaming(streamURL, privacy string) {
 	log.Println("Processing streaming...")
 
 	isDownloading = true
@@ -85,16 +86,17 @@ func processStreaming(streamURL string) {
 		Title:       recordTime,
 		Description: streamURL,
 		Category:    "22",
-		Privacy:     "unlisted",
+		Privacy:     privacy,
 	}
 	videoID := myUpload.UploadVideo(setting)
 	if videoID == "" {
 		log.Println("Upload video failed.")
-		return
+		gdrive.UploadVideo(uri, recordTime, "")
+	} else {
+		log.Println("Video uploaded. ID: ", videoID)
+
+		removeVideoFile(uri)
+
+		notifyVideoId(videoID)
 	}
-	log.Println("Video uploaded. ID: ", videoID)
-
-	removeVideoFile(uri)
-
-	notifyVideoId(videoID)
 }
