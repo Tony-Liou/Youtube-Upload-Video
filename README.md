@@ -7,14 +7,15 @@ If upload video to Youtube failed, uploading to Google Drive instead.
 
 ### Environment
 
-- Linux (Ubuntu 16.04 or later)
+- Linux (Tested on Ubuntu 20.04)
 
-### Prerequisite
+### Prerequisites
 
 - [Golang](https://golang.org/dl/) (1.16 or later)
 - [Streamlink](https://github.com/streamlink/streamlink/releases/latest)
-  - [RTMPDump](http://rtmpdump.mplayerhq.hu/) (if Streamlink did not installed automatically)
+  - [RTMPDump](http://rtmpdump.mplayerhq.hu/) (if Streamlink did not install it automatically)
 - [Youtube Data API](https://developers.google.com/youtube/v3/getting-started#before-you-start) (enable it and get the `client_secret.json`)
+- [Google Drive API](https://developers.google.com/drive/api/v3/enable-drive-api#enable_the_drive_api) (Optional)
 
 ## Usage
 
@@ -24,7 +25,7 @@ If upload video to Youtube failed, uploading to Google Drive instead.
    ```go
    func notifyVideoId(videoID string)
    ```
-3. Build and run `HttpServer.go` then it will work
+3. Build and run `HttpServer.go` then it will be ready to go
    ```shell
    go run HttpServer.go streaminghandler.go
    ```

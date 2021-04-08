@@ -1,4 +1,4 @@
-package myUpload
+package ytuploader
 
 import (
 	"context"
