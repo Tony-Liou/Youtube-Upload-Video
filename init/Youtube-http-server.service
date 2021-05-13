@@ -1,0 +1,14 @@
+[Unit]
+Description=Open the http server to process live streaming.
+After=network.target
+ 
+[Service]
+User=ltonyl1024
+# Group=group
+WorkingDirectory=/home/ltonyl1024/Youtube-Upload-Video/
+ExecStart=/home/ltonyl1024/Youtube-Upload-Video/bin/HttpServer
+Restart=on-failure
+RestartSec=3s
+
+[Install]
+WantedBy=multi-user.target
