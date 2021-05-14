@@ -87,9 +87,10 @@ func processStreaming(streamURL, privacy string) {
 		Description: streamURL,
 		Category:    "22",
 		Privacy:     privacy,
+		Language:    "zh-TW",
 	}
-	videoID := ytuploader.UploadVideo(setting)
-	if videoID == "" {
+	videoID, err := ytuploader.UploadVideo(setting)
+	if err != nil {
 		log.Println("Upload video failed. Starting uploading video to Gogole Drive.")
 		gdrive.UploadVideo(uri, recordTime, "")
 	} else {

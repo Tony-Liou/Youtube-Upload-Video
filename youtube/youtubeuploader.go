@@ -3,8 +3,8 @@ package ytuploader
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -20,32 +20,30 @@ import (
 
 // VideoSetting setting the video info that will be shown or be configured on Youtube
 type VideoSetting struct {
-	Filename    string // Filename is a filename
+	Filename    string
 	Title       string
 	Description string
 	Category    string // default is 22
-	Keywords    string // seperate by comma
+	Keywords    string // separate by comma
 	Privacy     string // public, unlisted, and private
 	Language    string
 }
 
 // getClient uses a Context and Config to retrieve a Token
 // then generate a Client. It returns the generated Client.
-func getClient(scope string) *http.Client {
+func getClient(scope string) (*http.Client, error) {
 	ctx := context.Background()
 
 	b, err := ioutil.ReadFile("client_secret.json")
 	if err != nil {
-		log.Printf("Unable to read client secret file: %v", err)
-		return nil
+		return nil, err
 	}
 
 	// If modifying the scope, delete your previously saved credentials
 	// at ~/.credentials/youtube-go.json
 	config, err := google.ConfigFromJSON(b, scope)
 	if err != nil {
-		log.Printf("Unable to parse client secret file to config: %v", err)
-		return nil
+		return nil, err
 	}
 
 	// Use a redirect URI like this for a web app. The redirect URI must be a
@@ -56,14 +54,10 @@ func getClient(scope string) *http.Client {
 
 	cacheFile, err := tokenCacheFile()
 	if err != nil {
-		log.Printf("Unable to get path to cached credential file. %v", err)
-		return nil
+		return nil, err
 	}
 	tok, err := tokenFromFile(cacheFile)
-	if err != nil {
-		log.Println(err)
-	}
-	return config.Client(ctx, tok)
+	return config.Client(ctx, tok), err
 }
 
 // tokenCacheFile generates credential file path/filename.
@@ -108,34 +102,26 @@ func checkVideoInfo(v *VideoSetting) {
 	if v.Privacy == "" {
 		v.Privacy = "private"
 	}
-
-	if v.Language == "" {
-		v.Language = "zh-TW"
-	}
 }
 
 // UploadVideo will upload a video to Youtube.
 // And you can use this function to approach this
-func UploadVideo(v *VideoSetting) string {
+func UploadVideo(v *VideoSetting) (string, error) {
 	if v.Filename == "" {
-		log.Println("You must provide a filename of a video file to upload")
-		return ""
+		return "", errors.New("File name is empty")
 	}
 
 	checkVideoInfo(v)
 
-	client := getClient(youtube.YoutubeUploadScope)
-
-	if client == nil {
-		log.Println("Upload the video to Youtube failed")
-		return ""
+	client, err := getClient(youtube.YoutubeUploadScope)
+	if err != nil {
+		return "", err
 	}
 
 	ctx := context.Background()
 	service, err := youtube.NewService(ctx, option.WithHTTPClient(client))
 	if err != nil {
-		log.Printf("Error creating YouTube client: %v", err)
-		return ""
+		return "", err
 	}
 
 	upload := &youtube.Video{
@@ -158,18 +144,14 @@ func UploadVideo(v *VideoSetting) string {
 
 	file, err := os.Open(v.Filename)
 	if err != nil {
-		log.Printf("Error opening %v: %v", v.Filename, err)
-		return ""
+		return "", err
 	}
 	defer file.Close()
 
-	log.Println("Starting uploading the video", v.Filename)
 	response, err := call.Media(file).Do()
 	if err != nil {
-		log.Println(err)
-		return ""
+		return "", err
 	}
-	log.Println("Video uploaded")
 
-	return response.Id
+	return response.Id, nil
 }
