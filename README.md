@@ -29,7 +29,7 @@ If upload video to Youtube failed, uploading to Google Drive instead.
    ```shell
    go run HttpServer.go streaminghandler.go
    ```
-4. Press `Ctrl+C` to terminate this app if you want to stop it
+4. Press `Ctrl+C` to stop it
 
 ## Credit
 

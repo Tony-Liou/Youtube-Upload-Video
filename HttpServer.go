@@ -84,7 +84,7 @@ func main() {
 		signal.Notify(sigint, os.Interrupt)
 		<-sigint
 
-		// We recieved an interrupt signal, shut down.
+		// We received an interrupt signal, shut down.
 		if err := srv.Shutdown(context.Background()); err != nil {
 			// Error from closing listeners, or context timeout:
 			log.Printf("HTTP server Shutdown: %v", err)
