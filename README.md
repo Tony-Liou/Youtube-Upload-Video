@@ -1,7 +1,7 @@
 # Youtube Upload Video
 
-Download a live streaming and upload the dumped video to Youtube after the stream is ended.
-If upload video to Youtube failed, uploading to Google Drive instead.
+Download a live-streaming and upload the dumped video to YouTube after the stream is ended.
+If upload video to YouTube failed, uploading to Google Drive instead.
 
 ## Installation
 
@@ -33,7 +33,7 @@ If upload video to Youtube failed, uploading to Google Drive instead.
 
 ## Credit
 
-My Github web page template is powered by [HTML5 UP](https://html5up.net/)
+My GitHub web page template is powered by [HTML5 UP](https://html5up.net/)
 
 ## License
 
