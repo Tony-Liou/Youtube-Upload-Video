@@ -70,7 +70,7 @@ func saveToken(path string, token *oauth2.Token) {
 		return
 	}
 	defer f.Close()
-	json.NewEncoder(f).Encode(token)
+	_ = json.NewEncoder(f).Encode(token)
 }
 
 // getOrCreateFolder returns the folder Id
@@ -82,7 +82,7 @@ func getOrCreateFolder(d *drive.Service, folderName string) string {
 
 	r, err := d.Files.List().Q(q).PageSize(1).Do()
 	if err != nil {
-		log.Println("Unable to retrieve foldername.", err)
+		log.Println("Unable to retrieve folder name.", err)
 	}
 
 	folderId := ""

@@ -73,7 +73,7 @@ func notifyVideoId(videoID string) {
 }
 
 // Executing streamlink to dump the live streaming.
-// After the live streaming ending, upload the video to Youtube.
+// After the live streaming ending, upload the video to YouTube.
 func processStreaming(streamURL, privacy string) {
 	log.Println("Processing streaming...")
 
@@ -91,7 +91,7 @@ func processStreaming(streamURL, privacy string) {
 	}
 	videoID, err := ytuploader.UploadVideo(setting)
 	if err != nil {
-		log.Println("Upload video failed. Starting uploading video to Gogole Drive.")
+		log.Println("Upload video failed. Starting uploading video to Google Drive.")
 		gdrive.UploadVideo(uri, recordTime, "")
 	} else {
 		log.Println("Video uploaded. ID: ", videoID)

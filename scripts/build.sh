@@ -13,4 +13,4 @@ export CGO_ENABLED=0
 
 echo "Start building..."
 go build HttpServer.go streaminghandler.go -o bin/HttpServer
-echo "Finshed"
+echo "Finished"

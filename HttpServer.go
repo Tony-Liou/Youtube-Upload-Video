@@ -3,12 +3,18 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
+)
+
+var (
+	port        = flag.String("port", "8080", "port to listen on")
+	logFileName = flag.String("logname", "server.log", "log file name")
 )
 
 var isDownloading bool       // Streamlink is dumping the stream
@@ -59,22 +65,19 @@ func (ih indexHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	logFileName := os.Getenv("LOG_FILE_NAME")
-	if logFileName == "" {
-		logFileName = "myServer.log"
-	}
-	f, err := os.OpenFile(logFileName, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+	flag.Parse()
+
+	f, err := os.OpenFile(*logFileName, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
-		log.Fatalf("error opening log file: %v", err)
+		log.Fatalf("opening log file error: %v", err)
 	}
 	defer f.Close()
 
 	log.SetOutput(f)
 
-	port := ":8080"
 	var myHandler indexHandler
 	srv := &http.Server{
-		Addr:    port,
+		Addr:    ":" + *port,
 		Handler: myHandler,
 	}
 
@@ -84,7 +87,7 @@ func main() {
 		signal.Notify(sigint, os.Interrupt)
 		<-sigint
 
-		// We received an interrupt signal, shut down.
+		// Received an interrupt signal, shut down.
 		if err := srv.Shutdown(context.Background()); err != nil {
 			// Error from closing listeners, or context timeout:
 			log.Printf("HTTP server Shutdown: %v", err)
@@ -93,7 +96,7 @@ func main() {
 	}()
 
 	isOnline = make(map[string]bool)
-	log.Println("Starting server... Port is ", port)
+	log.Println("Starting server... Port is ", *port)
 	err = srv.ListenAndServe()
 	if err != nil {
 		// Error starting or closing listener:

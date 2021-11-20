@@ -18,7 +18,7 @@ import (
 	"google.golang.org/api/youtube/v3"
 )
 
-// VideoSetting setting the video info that will be shown or be configured on Youtube
+// VideoSetting setting the video info that will be shown or be configured on YouTube
 type VideoSetting struct {
 	Filename    string
 	Title       string
@@ -104,11 +104,10 @@ func checkVideoInfo(v *VideoSetting) {
 	}
 }
 
-// UploadVideo will upload a video to Youtube.
-// And you can use this function to approach this
+// UploadVideo uploads a video to YouTube according to VideoSetting.
 func UploadVideo(v *VideoSetting) (string, error) {
 	if v.Filename == "" {
-		return "", errors.New("File name is empty")
+		return "", errors.New("file name is empty")
 	}
 
 	checkVideoInfo(v)
