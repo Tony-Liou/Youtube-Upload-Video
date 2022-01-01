@@ -60,8 +60,8 @@ func CreateOauthToken() error {
 		return err
 	}
 
-	saveToken(cacheFile, tok)
-	return nil
+	_, err = saveToken(cacheFile, tok)
+	return err
 }
 
 // UploadVideo uploads a video to YouTube according to VideoSetting.
