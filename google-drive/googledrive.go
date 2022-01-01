@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -85,7 +84,7 @@ func getOrCreateFolder(d *drive.Service, folderName string) string {
 		log.Println("Unable to retrieve folder name.", err)
 	}
 
-	folderId := ""
+	var folderId string
 	if len(r.Files) > 0 {
 		folderId = r.Files[0].Id
 	} else {
@@ -121,7 +120,7 @@ func uploadFile(srv *drive.Service, fileInfo *drive.File, content io.Reader) (*d
 
 // UploadVideo uploads the file to the target Google Drive
 func UploadVideo(filePath, driveFileName, mimeType string) {
-	b, err := ioutil.ReadFile("credentials.json")
+	b, err := os.ReadFile("credentials.json")
 	if err != nil {
 		log.Printf("Unable to read client secret file: %v", err)
 		return

@@ -8,4 +8,6 @@ RUN go build -o app
 
 RUN apt update && apt install streamlink -y
 
+EXPOSE 8080
+
 CMD ["./app"]
