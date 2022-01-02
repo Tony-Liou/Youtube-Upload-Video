@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -17,7 +17,6 @@ var (
 	logFileName = flag.String("logname", "server.log", "log file name")
 )
 
-var isDownloading bool       // Streamlink is dumping the stream
 var isOnline map[string]bool // key is the stream url and value indicates it is online or not
 
 type frame struct {
@@ -36,10 +35,10 @@ func (ih indexHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("GET"))
 	case http.MethodPost:
-		reqBody, err := ioutil.ReadAll(r.Body)
+		reqBody, err := io.ReadAll(r.Body)
 		if err != nil {
 			log.Println(err)
-			http.Error(w, "can't read body", http.StatusBadRequest)
+			http.Error(w, "cannot read body", http.StatusBadRequest)
 			return
 		}
 
@@ -51,7 +50,7 @@ func (ih indexHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 		if ih.frame.StreamURL != "" {
 			isOnline[ih.frame.StreamURL] = ih.frame.IsStreaming
-			if isOnline[ih.frame.StreamURL] && !isDownloading {
+			if isOnline[ih.frame.StreamURL] {
 				go processStreaming(ih.frame.StreamURL, ih.frame.VideoStatus)
 			}
 		}

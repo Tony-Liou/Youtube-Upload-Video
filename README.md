@@ -7,15 +7,20 @@ If upload video to YouTube failed, uploading to Google Drive instead.
 
 ### Environment
 
-- Linux (Tested on Ubuntu 20.04)
+- Linux
 
 ### Prerequisites
 
 - [Golang](https://golang.org/dl/) (1.16 or later)
 - [Streamlink](https://github.com/streamlink/streamlink/releases/latest)
   - [RTMPDump](http://rtmpdump.mplayerhq.hu/) (if Streamlink did not install it automatically)
-- [Youtube Data API](https://developers.google.com/youtube/v3/getting-started#before-you-start) (enable it and get the `client_secret.json`)
+- [YouTube Data API](https://developers.google.com/youtube/v3/getting-started#before-you-start) (enable it and get the `client_secret.json`)
 - [Google Drive API](https://developers.google.com/drive/api/v3/enable-drive-api#enable_the_drive_api) (Optional)
+
+## Deployment
+
+- `client_secret.json` at the same directory with this app
+- `youtube-go.json` (oauth2 file) at `~/.credentials` directory
 
 ## Usage
 

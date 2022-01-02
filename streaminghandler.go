@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -21,7 +20,6 @@ func execStreamlink(streamURL string) (string, string) {
 	curTimeStamp := strconv.FormatInt(t.UnixNano(), 10)
 
 	app := "streamlink"
-
 	option := "-o"
 	filename := "stream" + curTimeStamp
 	url := streamURL
@@ -37,16 +35,15 @@ func execStreamlink(streamURL string) (string, string) {
 	log.Println("Streamlink starting...")
 	err := cmd.Run()
 	if err != nil {
-		log.Println(fmt.Sprint(err) + ": " + stderr.String())
+		log.Printf("%v : %s\n", err, stderr.String())
 	}
 	log.Println("Result: ", out.String())
 
 	return curTime, filename
 }
 
-// Execute shell to remove the video file
 func removeVideoFile(path string) {
-	err := exec.Command("rm", path).Run()
+	err := os.Remove(path)
 	if err != nil {
 		log.Println(err)
 	}
@@ -72,14 +69,12 @@ func notifyVideoId(videoID string) {
 	}
 }
 
-// Executing streamlink to dump the live streaming.
+// processStreaming Executes streamlink to dump the live streaming.
 // After the live streaming ending, upload the video to YouTube.
 func processStreaming(streamURL, privacy string) {
 	log.Println("Processing streaming...")
 
-	isDownloading = true
 	recordTime, uri := execStreamlink(streamURL)
-	isDownloading = false
 
 	setting := &ytuploader.VideoSetting{
 		Filename:    uri,
@@ -87,7 +82,7 @@ func processStreaming(streamURL, privacy string) {
 		Description: streamURL,
 		Category:    "22",
 		Privacy:     privacy,
-		Language:    "zh-TW",
+		//Language:    "zh-TW",
 	}
 	videoID, err := ytuploader.UploadVideo(setting)
 	if err != nil {

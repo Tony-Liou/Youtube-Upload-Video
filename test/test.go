@@ -11,7 +11,7 @@ import (
 func redirectionHandler(w http.ResponseWriter, req *http.Request) {
 	code := req.FormValue("code")
 	if code != "" {
-		w.Write([]byte("Copy the following auth code and paste it to the console:\n\n" + code))
+		w.Write([]byte("Copy the following auth code and paste it to the terminal:\n\n" + code))
 	} else {
 		w.Write([]byte("Error: " + req.FormValue("error")))
 	}
